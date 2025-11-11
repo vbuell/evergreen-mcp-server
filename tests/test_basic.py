@@ -6,7 +6,7 @@ These tests validate individual components without requiring Evergreen credentia
 """
 
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestImports(unittest.TestCase):
@@ -58,6 +58,7 @@ class TestImports(unittest.TestCase):
                 "GET_PATCH_FAILED_TASKS",
                 "GET_TASK_LOGS",
                 "GET_TASK_TEST_RESULTS",
+                "GET_WATERFALL_FAILED_TASKS",
             ]
             for query in expected_queries:
                 self.assertTrue(

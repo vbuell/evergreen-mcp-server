@@ -22,6 +22,7 @@ from .failed_jobs_tools import (
     fetch_user_recent_patches,
     infer_project_id_from_context,
 )
+from .waterfall_tools import fetch_waterfall_failed_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -453,4 +454,51 @@ def register_tools(mcp: FastMCP) -> None:
         )
         return json.dumps(result, indent=2)
 
-    logger.info("Registered %d tools with FastMCP server", 8)
+
+    @mcp.tool(
+        description=(
+            "Retrieve recent versions (flattened waterfall view) containing failed tasks "
+            "for one or more build variants in a project. Use this to identify the most "
+            "recent failing revisions and obtain task IDs for deeper log/test analysis."
+        )
+    )
+    async def get_waterfall_failed_tasks_evergreen(
+        ctx: Context,
+        project_identifier: Annotated[
+            str,
+            "Evergreen project identifier (e.g. 'mms'). Required.",
+        ],
+        variant: Annotated[
+            Optional[str],
+            "Single build variant to query (e.g. 'ACPerf'). Can be combined "
+            "with 'variants'; will be merged and deduplicated.",
+        ] = None,
+        variants: Annotated[
+            Optional[list],
+            "List of build variants to query. Provide multiple variants when "
+            "investigating failures across platforms.",
+        ] = None,
+        waterfall_limit: Annotated[
+            int,
+            "Maximum number of recent flattened versions to examine. Default 100.",
+        ] = 100,
+        statuses: Annotated[
+            Optional[list],
+            "Task statuses to include. Defaults to failed/system-failed/task-timed-out.",
+        ] = None,
+    ) -> str:
+        """Get recent failed tasks from the waterfall view for a project."""
+        evg_ctx = ctx.request_context.lifespan_context
+
+        arguments = {
+            "project_identifier": project_identifier,
+            "variant": variant,
+            "variants": variants,
+            "waterfall_limit": waterfall_limit,
+            "statuses": statuses,
+        }
+
+        result = await fetch_waterfall_failed_tasks(evg_ctx.client, arguments)
+        return json.dumps(result, indent=2)
+
+    logger.info("Registered %d tools with FastMCP server", 9)
