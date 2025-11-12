@@ -11,6 +11,7 @@ from typing import Annotated, Any, Dict, Optional
 from fastmcp import Context, FastMCP
 
 from .artifact_download_tools import fetch_task_artifacts
+from .evergreen import download_task_artifacts
 from .failed_jobs_tools import (
     ProjectInferenceResult,
     fetch_evergreen_task_logs,
