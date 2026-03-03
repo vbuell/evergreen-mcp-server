@@ -87,6 +87,11 @@ async def fetch_waterfall_failed_tasks(
                 "task_id": task_id,
                 "task_name": task.get("displayName"),
                 "status": task.get("status"),
+                # Pre-computed args for convenient follow-up tool calls
+                "tool_args": {
+                    "logs": {"task_id": task_id},
+                    "tests": {"task_id": task_id},
+                },
             }
         )
 
