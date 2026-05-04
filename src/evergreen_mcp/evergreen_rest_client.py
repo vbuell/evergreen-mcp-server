@@ -5,8 +5,9 @@ This module provides a REST client for interacting with the Evergreen CI/CD plat
 It handles authentication, connection management and query execution.
 """
 
+import base64
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 
@@ -305,3 +306,49 @@ class EvergreenRestClient:
             raise RuntimeError(f"No data returned for task '{task_id}'")
 
         return TaskResponse.model_validate(data)
+
+    async def submit_patch(
+        self,
+        project: str,
+        diff: str,
+        githash: str,
+        description: str = "",
+        variants: Optional[List[str]] = None,
+        tasks: Optional[List[str]] = None,
+        alias: str = "",
+        finalize: bool = False,
+        parameters: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        """Submit a new patch to Evergreen via the V1 API.
+
+        The patch diff is base64-encoded in the request body as patch_bytes,
+        matching the encoding that the Go CLI uses.
+
+        Returns the created patch object as a dict.
+        """
+        # The patch submission endpoint is on the V1 API (/api/patches/), not V2.
+        v1_base = self.base_url.rsplit("/rest/v2", 1)[0]
+        url = f"{v1_base}/api/patches/"
+
+        payload: Dict[str, Any] = {
+            "project": project,
+            "patch_bytes": base64.b64encode(diff.encode("utf-8")).decode("ascii"),
+            "githash": githash,
+            "desc": description,
+            "buildvariants_new": variants or [],
+            "tasks": tasks or [],
+            "alias": alias,
+            "finalize": finalize,
+            "parameters": parameters or [],
+        }
+
+        response = await self._request(
+            "PUT", url, json=payload, timeout=aiohttp.ClientTimeout(total=60)
+        )
+
+        if response.get("status") != "success":
+            raise RuntimeError(
+                f"Failed to submit patch: status={response.get('status')!r}"
+            )
+
+        return response.get("data", {})

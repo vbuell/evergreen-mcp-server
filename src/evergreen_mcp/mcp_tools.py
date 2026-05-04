@@ -681,4 +681,85 @@ def register_tools(mcp: FastMCP) -> None:
         }
         return json.dumps(response, indent=2)
 
-    logger.info("Registered %d tools with FastMCP server", 9)
+    @mcp.tool(
+        description=(
+            "Submit a new patch to Evergreen CI. Creates a patch from a git diff "
+            "and optionally schedules CI tasks on it. The diff should be the output "
+            "of 'git diff HEAD' or similar. Use 'variants' and 'tasks' to specify "
+            "what to run, or 'alias' to use a pre-configured task set. "
+            "Set finalize=true to activate the patch immediately; otherwise it "
+            "will be created in an unfinalized state and no tasks will be scheduled."
+        )
+    )
+    async def submit_patch_evergreen(
+        ctx: Context,
+        project_id: Annotated[
+            str,
+            "Evergreen project identifier (e.g., 'mongodb-mongo-master'). Required.",
+        ],
+        diff: Annotated[
+            str,
+            "Git diff content to submit (output of 'git diff HEAD' or similar). "
+            "Pass an empty string for alias-only patches.",
+        ],
+        githash: Annotated[
+            str,
+            "Base commit hash the diff is applied against "
+            "(output of 'git rev-parse HEAD').",
+        ],
+        description: Annotated[
+            str,
+            "Human-readable description for the patch.",
+        ] = "",
+        variants: Annotated[
+            Optional[list],
+            "List of build variant names to run "
+            "(e.g. ['enterprise-rhel-80-64-bit']). Use together with 'tasks'.",
+        ] = None,
+        tasks: Annotated[
+            Optional[list],
+            "List of task names to run (e.g. ['compile', 'jsCore']). "
+            "Use together with 'variants'.",
+        ] = None,
+        alias: Annotated[
+            str,
+            "Patch alias for a pre-configured variant/task set (e.g. 'required'). "
+            "Mutually exclusive with explicit variants/tasks.",
+        ] = "",
+        finalize: Annotated[
+            bool,
+            "If true, immediately activate and schedule all specified tasks. "
+            "If false (default), create the patch without scheduling tasks.",
+        ] = False,
+        parameters: Annotated[
+            Optional[list],
+            "List of build expansion parameters as dicts with 'key' and 'value' "
+            "fields (e.g. [{'key': 'my_param', 'value': 'my_value'}]).",
+        ] = None,
+        bearer_token: Annotated[
+            str | None,
+            "Override with a bearer token for this request. If not provided, uses the server's default credentials.",
+        ] = None,
+    ) -> str:
+        """Submit a new patch to Evergreen."""
+        evg_ctx = ctx.request_context.lifespan_context
+
+        async with _get_clients(evg_ctx, bearer_token=bearer_token) as (
+            client,
+            api_client,
+            user_id,
+        ):
+            result = await api_client.submit_patch(
+                project=project_id,
+                diff=diff,
+                githash=githash,
+                description=description,
+                variants=variants,
+                tasks=tasks,
+                alias=alias,
+                finalize=finalize,
+                parameters=parameters,
+            )
+        return json.dumps(result, indent=2)
+
+    logger.info("Registered %d tools with FastMCP server", 10)
